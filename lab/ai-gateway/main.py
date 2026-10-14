@@ -62,7 +62,7 @@ def deny(event: dict, reason: str, entities: list[str] | None = None) -> JSONRes
 
 @app.get("/health", include_in_schema=False)
 def health():
-    return {"status": "ok", "llm_guard": guardrails.LLM_GUARD_ENABLED, "mock_llm": MOCK_LLM}
+    return {"status": "ok", "injection_model": guardrails.INJECTION_MODEL_ENABLED, "mock_llm": MOCK_LLM}
 
 
 @app.post("/api/v1/ai/chat")

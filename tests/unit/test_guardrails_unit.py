@@ -1,13 +1,13 @@
 """Unit tests for the AI guardrails (no Docker, no model). Run: pytest tests/unit -q
 
-Uses the light mode (regex + Presidio, LLM Guard off), the same mode CI runs.
+Uses the light mode (regex + Presidio, injection model off), the same mode CI runs.
 Needs: pip install -r lab/ai-gateway/requirements.txt pytest && python -m spacy download en_core_web_sm
 """
 import os
 import pathlib
 import sys
 
-os.environ["LLM_GUARD_ENABLED"] = "false"
+os.environ["INJECTION_MODEL_ENABLED"] = "false"
 os.environ.setdefault("SPACY_MODEL", "en_core_web_sm")  # CI installs the small model
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "lab" / "ai-gateway"))
 

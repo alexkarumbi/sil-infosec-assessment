@@ -37,3 +37,10 @@ def health():
 def unsafe(name):
     # ruleid: sql-built-with-fstring
     return query(f"SELECT * FROM patients WHERE full_name = '{name}'")
+
+
+def not_sql(entity):
+    out = []
+    # ok: sql-built-with-fstring
+    out.append(f"<{entity}>")
+    return out

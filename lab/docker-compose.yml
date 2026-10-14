@@ -106,13 +106,13 @@ services:
       context: .
       dockerfile: ai-gateway/Dockerfile
       args:
-        WITH_LLM_GUARD: ${WITH_LLM_GUARD:-true}
+        WITH_ML_DETECTOR: ${WITH_ML_DETECTOR:-true}
         SPACY_MODEL: ${SPACY_MODEL:-en_core_web_lg}
     environment:
       OIDC_ISSUER: http://localhost:8081/realms/sil
       OIDC_AUDIENCE: sil-api
       JWKS_URL: http://keycloak:8080/realms/sil/protocol/openid-connect/certs
-      LLM_GUARD_ENABLED: ${WITH_LLM_GUARD:-true}
+      INJECTION_MODEL_ENABLED: ${WITH_ML_DETECTOR:-true}
       MOCK_LLM: ${MOCK_LLM:-false}            # true = echo the masked prompt instead of calling a model
       UPSTREAM_URL: http://ollama:11434/v1/chat/completions
       UPSTREAM_MODEL: ${UPSTREAM_MODEL:-qwen2.5:0.5b}

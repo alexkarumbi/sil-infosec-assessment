@@ -33,7 +33,7 @@ docker compose -f lab/docker-compose.yml exec ollama ollama pull qwen2.5:0.5b
 ```
 
 The first build of the AI gateway downloads PyTorch, spaCy and the prompt-injection model (about 3 GB,
-10-20 minutes). For a fast first run set `WITH_LLM_GUARD=false` and `SPACY_MODEL=en_core_web_sm` in `lab/.env`.
+10-20 minutes). For a fast first run set `WITH_ML_DETECTOR=false` and `SPACY_MODEL=en_core_web_sm` in `lab/.env`.
 
 | Service | URL | Notes |
 | --- | --- | --- |

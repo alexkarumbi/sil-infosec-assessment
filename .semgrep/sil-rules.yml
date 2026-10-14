@@ -56,7 +56,11 @@ rules:
     message: SQL built with an f-string or concatenation. Use parameters (%s) instead.
     metadata:
       cwe: "CWE-89: SQL Injection"
+    # Scoped to database calls only. A first version matched ANY call with an f-string and flagged
+    # harmless code (out.append(f"<{entity}>") in guardrails.py) - tuned after that false positive.
     pattern-either:
       - pattern: $CUR.execute(f"...", ...)
-      - pattern: $DB(f"...", ...)
       - pattern: $CUR.execute("..." + $X, ...)
+      - pattern: $CUR.executemany(f"...", ...)
+      - pattern: query(f"...", ...)
+      - pattern: query("..." + $X, ...)

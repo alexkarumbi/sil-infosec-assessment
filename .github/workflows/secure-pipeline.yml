@@ -71,7 +71,7 @@ jobs:
       - name: Known vulnerabilities (pip-audit)
         run: |
           pip install pip-audit
-          for r in lab/apis/*/requirements.txt lab/ai-gateway/requirements.txt tests/requirements.txt; do
+          for r in lab/apis/*/requirements.txt lab/ai-gateway/requirements.txt lab/ai-gateway/requirements-ml.txt tests/requirements.txt; do
             echo "== $r"; pip-audit --requirement "$r" --strict
           done
       - name: Trivy filesystem scan (dependencies, Dockerfiles, compose, secrets)

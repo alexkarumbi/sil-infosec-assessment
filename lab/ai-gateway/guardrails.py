@@ -2,11 +2,16 @@
 
 Order of checks on the way IN (cheapest first):
   1. prompt-injection heuristics (regex, English + Swahili phrases)
-  2. prompt-injection classifier (LLM Guard, optional: LLM_GUARD_ENABLED)
-  3. secrets (regex for connection strings and keys, + LLM Guard Secrets scanner when enabled)
+  2. prompt-injection classifier (optional, INJECTION_MODEL_ENABLED): the open
+     protectai/deberta-v3-base-prompt-injection-v2 model, run with Hugging Face transformers
+  3. secrets (connection strings, cloud keys, private keys, tokens, password assignments)
   4. hard identifiers (MRN, National ID, KRA PIN, card numbers) -> BLOCK, PHI never leaves
   5. softer personal data (names, phones, emails, places) -> MASK before the prompt leaves
 On the way OUT: mask personal data in the model's answer.
+
+Dependency note (found by pip-audit in CI): LLM Guard 0.3.16 pins presidio-anonymizer 2.2.358,
+which pins cryptography<44.1 (10 known vulnerabilities). We therefore use Presidio's analyzer only,
+do the masking ourselves (_mask below), and call the same injection model directly.
 """
 from __future__ import annotations
 
@@ -14,7 +19,9 @@ import os
 import re
 from dataclasses import dataclass, field
 
-LLM_GUARD_ENABLED = os.environ.get("LLM_GUARD_ENABLED", "true").lower() == "true"
+INJECTION_MODEL_ENABLED = os.environ.get("INJECTION_MODEL_ENABLED", "true").lower() == "true"
+INJECTION_MODEL = os.environ.get("INJECTION_MODEL", "protectai/deberta-v3-base-prompt-injection-v2")
+INJECTION_THRESHOLD = float(os.environ.get("INJECTION_THRESHOLD", "0.9"))
 # en_core_web_lg finds names far better (the small model tagged "Summarise" as a PERSON in testing).
 # The full image uses lg; the light CI image uses sm to save ~500 MB.
 SPACY_MODEL = os.environ.get("SPACY_MODEL", "en_core_web_lg")
@@ -35,6 +42,7 @@ SECRET_PATTERNS = re.compile(
     r"|AKIA[0-9A-Z]{16}"                                                            # AWS access key ID
     r"|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
     r"|gh[pousr]_[A-Za-z0-9]{36}"                                                   # GitHub tokens
+    r"|xox[abpr]-[A-Za-z0-9-]{10,}"                                                 # Slack tokens
     r"|(?:password|passwd|pwd|secret|api[_-]?key)\s*[:=]\s*\S{6,}"
 )
 
@@ -42,18 +50,15 @@ BLOCK_ENTITIES = {"MEDICAL_RECORD_NUMBER", "KE_NATIONAL_ID", "KRA_PIN", "CREDIT_
 MASK_ENTITIES = {"PERSON", "PHONE_NUMBER", "KE_PHONE", "EMAIL_ADDRESS", "LOCATION"}
 
 _analyzer = None
-_anonymizer = None
-_llm_injection = None
-_llm_secrets = None
+_classifier = None
 
 
 def _engines():
-    """Build the NLP engines once (spaCy + Presidio, and LLM Guard when enabled)."""
-    global _analyzer, _anonymizer, _llm_injection, _llm_secrets
+    """Build the engines once: spaCy + Presidio analyzer, and the injection classifier when enabled."""
+    global _analyzer, _classifier
     if _analyzer is None:
         from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer
         from presidio_analyzer.nlp_engine import NlpEngineProvider
-        from presidio_anonymizer import AnonymizerEngine
 
         nlp = NlpEngineProvider(
             nlp_configuration={
@@ -77,13 +82,34 @@ def _engines():
                 )
             )
         _analyzer = analyzer
-        _anonymizer = AnonymizerEngine()
-    if LLM_GUARD_ENABLED and _llm_injection is None:
-        from llm_guard.input_scanners import PromptInjection, Secrets
+    if INJECTION_MODEL_ENABLED and _classifier is None:
+        from transformers import pipeline
 
-        _llm_injection = PromptInjection(threshold=0.9)
-        _llm_secrets = Secrets()
-    return _analyzer, _anonymizer
+        _classifier = pipeline(
+            "text-classification", model=INJECTION_MODEL, truncation=True, max_length=512, device=-1
+        )
+    return _analyzer
+
+
+def _model_says_injection(text: str) -> bool:
+    if _classifier is None:
+        return False
+    result = _classifier(text)[0]          # e.g. {"label": "INJECTION", "score": 0.998}
+    return result["label"].upper() == "INJECTION" and result["score"] >= INJECTION_THRESHOLD
+
+
+def _mask(text: str, findings) -> str:
+    """Replace each detected span with <ENTITY_TYPE>. Overlaps: keep the earliest, then longest span."""
+    spans = sorted(findings, key=lambda f: (f.start, -(f.end - f.start)))
+    out, cursor = [], 0
+    for f in spans:
+        if f.start < cursor:               # overlaps a span already masked
+            continue
+        out.append(text[cursor:f.start])
+        out.append(f"<{f.entity_type}>")
+        cursor = f.end
+    out.append(text[cursor:])
+    return "".join(out)
 
 
 def warm_up() -> None:
@@ -102,16 +128,12 @@ class Verdict:
 
 
 def check_input(prompt: str) -> Verdict:
-    analyzer, anonymizer = _engines()
+    analyzer = _engines()
 
-    if INJECTION_HEURISTICS.search(prompt):
-        return Verdict(False, "prompt_injection")
-    if _llm_injection is not None and not _llm_injection.scan(prompt)[1]:
+    if INJECTION_HEURISTICS.search(prompt) or _model_says_injection(prompt):
         return Verdict(False, "prompt_injection")
 
     if SECRET_PATTERNS.search(prompt):
-        return Verdict(False, "secret_detected")
-    if _llm_secrets is not None and not _llm_secrets.scan(prompt)[1]:
         return Verdict(False, "secret_detected")
 
     findings = analyzer.analyze(text=prompt, language="en", score_threshold=SCORE_THRESHOLD)
@@ -120,12 +142,12 @@ def check_input(prompt: str) -> Verdict:
         return Verdict(False, "phi_detected", entities=hard)
 
     soft = [f for f in findings if f.entity_type in MASK_ENTITIES]
-    masked = anonymizer.anonymize(text=prompt, analyzer_results=soft).text if soft else prompt
+    masked = _mask(prompt, soft) if soft else prompt
     return Verdict(True, text=masked, masked=len(soft), entities=sorted({f.entity_type for f in soft}))
 
 
 def clean_output(answer: str) -> tuple[str, int]:
-    analyzer, anonymizer = _engines()
+    analyzer = _engines()
     found = [
         f
         for f in analyzer.analyze(text=answer, language="en", score_threshold=SCORE_THRESHOLD)
@@ -133,4 +155,4 @@ def clean_output(answer: str) -> tuple[str, int]:
     ]
     if not found:
         return answer, 0
-    return anonymizer.anonymize(text=answer, analyzer_results=found).text, len(found)
+    return _mask(answer, found), len(found)
