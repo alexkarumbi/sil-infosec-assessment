@@ -1,0 +1,25 @@
+<!--
+  Paste these blocks inside <ossec_config> in wazuh-docker/single-node/config/wazuh_cluster/wazuh_manager.conf,
+  and mount the lab logs into the manager (see README, "Wazuh"):
+      - /home/<you>/sil-infosec-assessment/lab/logs:/var/log/sil:ro
+  Every source writes one JSON object per line, so Wazuh's built-in JSON decoder parses them: no custom decoder.
+-->
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/sil/squid/access.json</location>
+</localfile>
+
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/sil/ai/guardrail.json</location>
+</localfile>
+
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/sil/waf/audit.json</location>
+</localfile>
+
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/sil/kong/access.json</location>
+</localfile>

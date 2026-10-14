@@ -1,0 +1,1 @@
+{"log_source":"squid","ts":"2026-10-17T10:31:02+0000","src_ip":"172.18.0.1","method":"CONNECT","url":"chatgpt.com:443","dest_host":"chatgpt.com","status":403,"action":"TCP_DENIED","bytes":3901}

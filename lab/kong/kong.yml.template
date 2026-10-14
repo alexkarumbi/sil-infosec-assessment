@@ -1,0 +1,65 @@
+# Kong declarative config (DB-less). scripts/render_kong_config.py writes kong.yml from this
+# template after pasting in Keycloak's realm public key. Edit THIS file, not kong.yml.
+_format_version: "3.0"
+
+consumers:
+  - username: keycloak-sil
+    jwt_secrets:
+      - key: http://localhost:8081/realms/sil      # must equal the token's iss claim
+        algorithm: RS256
+        rsa_public_key: |
+__KEYCLOAK_PUBLIC_KEY__
+
+services:
+  - name: patients-api
+    url: http://patients-api:8000
+    routes:
+      - name: patients
+        paths: [/api/v1/patients]
+        strip_path: false
+        methods: [GET, POST]
+
+  - name: appointments-api
+    url: http://appointments-api:8000
+    routes:
+      - name: appointments
+        paths: [/api/v1/appointments]
+        strip_path: false
+        methods: [GET, POST]
+
+  - name: ai-gateway
+    url: http://ai-gateway:8000
+    connect_timeout: 5000
+    read_timeout: 120000                         # small local models can be slow on CPU
+    routes:
+      - name: ai
+        paths: [/api/v1/ai]
+        strip_path: false
+        methods: [GET, POST]
+    plugins:
+      - name: rate-limiting                      # tighter: every LLM call costs compute and money
+        config: { minute: 10, hour: 200, policy: local, limit_by: ip }
+
+plugins:                                         # global: applied to every route
+  - name: jwt
+    config:
+      key_claim_name: iss
+      claims_to_verify: [exp]
+      maximum_expiration: 3600
+  - name: rate-limiting
+    config: { minute: 60, hour: 1000, policy: local, limit_by: ip }
+  - name: request-size-limiting
+    config: { allowed_payload_size: 1, size_unit: megabytes }
+  - name: correlation-id
+    config: { header_name: X-Request-ID, generator: uuid, echo_downstream: true }
+  - name: response-transformer
+    config:
+      remove: { headers: [Server, X-Powered-By] }
+      add:
+        headers:
+          - "Cache-Control:no-store"
+          - "X-Content-Type-Options:nosniff"
+          - "Content-Security-Policy:default-src 'none'; frame-ancestors 'none'"
+          - "Referrer-Policy:no-referrer"
+  - name: file-log
+    config: { path: /var/log/kong/access.json, reopen: true }

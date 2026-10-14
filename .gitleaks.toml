@@ -1,0 +1,20 @@
+# Gitleaks config: the default ruleset plus a rule for the case in the brief (a pasted database string).
+title = "SIL assessment gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "db-connection-string"
+description = "Database connection string containing a password"
+regex = '''(?i)(postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|mssql)://[^:\s/$]+:[^@\s$]+@[^\s'"]+'''
+tags = ["database", "credential"]
+
+# Narrow, documented exceptions. Each one is a deliberate decision a reviewer can challenge.
+[allowlist]
+description = "Throwaway CI values, placeholder examples, and deliberately fake secrets used by tests/demos"
+paths = [
+  '''lab/\.env\.(ci|example)$''',
+  '''^tests/''',
+  '''^docs/''',
+]

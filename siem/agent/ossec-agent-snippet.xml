@@ -1,0 +1,14 @@
+<!--
+  Windows agent additions. Add inside <ossec_config> in
+  C:\Program Files (x86)\ossec-agent\ossec.conf, then: Restart-Service -Name wazuh
+  Sysmon first: Sysmon64.exe -accepteula -i sysmonconfig.xml  (SwiftOnSecurity or olafhartong sysmon-modular)
+-->
+<localfile>
+  <location>Microsoft-Windows-Sysmon/Operational</location>
+  <log_format>eventchannel</log_format>
+</localfile>
+
+<syscheck>
+  <!-- realtime file integrity monitoring of the ransomware test folder only -->
+  <directories realtime="yes" check_all="yes">C:\SIL-RansomTest</directories>
+</syscheck>

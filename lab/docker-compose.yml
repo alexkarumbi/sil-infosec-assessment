@@ -1,0 +1,144 @@
+# SIL Infosec Assessment lab
+# Request path : client -> waf (ModSecurity + OWASP CRS) -> kong -> API -> postgres
+# AI path      : client -> waf -> kong -> ai-gateway (guardrails) -> ollama | squid -> enterprise LLM
+# Start with   : ../scripts/lab_up.sh   (renders kong.yml with Keycloak's public key first)
+
+name: sil-lab
+
+networks:
+  edge: {}                          # the only network with published ports
+  internal:                         # no route in or out except through the WAF / Squid
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  egress: {}                        # internet access: Squid and Ollama (model pull) only
+
+volumes:
+  pgdata: {}
+  ollama: {}
+
+services:
+  waf:
+    image: owasp/modsecurity-crs:nginx-alpine
+    ports: ["8080:8080"]
+    environment:
+      BACKEND: http://kong:8000
+      PARANOIA: "1"                 # raise to 2 once false positives are tuned
+      BLOCKING_PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      MODSEC_RULE_ENGINE: "On"
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      MODSEC_AUDIT_LOG_FORMAT: JSON
+      MODSEC_AUDIT_LOG_TYPE: Serial
+      MODSEC_AUDIT_LOG: /var/log/modsec/audit.json
+    volumes:
+      - ./logs/waf:/var/log/modsec
+    networks: [edge, internal]
+    depends_on: [kong]
+    restart: unless-stopped
+
+  kong:
+    image: kong:3.9
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "127.0.0.1:8001"     # admin API never exposed
+      KONG_TRUSTED_IPS: 172.30.0.0/24         # trust X-Forwarded-For only from inside the lab
+      KONG_REAL_IP_HEADER: X-Forwarded-For
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_HEADERS: "off"                     # hide Kong version headers
+    volumes:
+      - ./kong:/kong:ro
+      - ./logs/kong:/var/log/kong
+    networks: [internal]
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set KC_ADMIN_PASSWORD in .env}
+      KC_HOSTNAME: http://localhost:8081      # fixes the token issuer (iss) claim
+      LAB_USER_PASSWORD: ${LAB_USER_PASSWORD:?set LAB_USER_PASSWORD in .env}   # substituted into the realm import
+    ports: ["8081:8080"]
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    networks: [edge, internal]
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sil
+      POSTGRES_USER: sil_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [internal]
+    restart: unless-stopped
+
+  patients-api:
+    build: { context: ., dockerfile: apis/patients/Dockerfile }
+    environment: &apienv
+      DATABASE_URL: postgresql://sil_app:${DB_PASSWORD}@db:5432/sil
+      OIDC_ISSUER: http://localhost:8081/realms/sil
+      OIDC_AUDIENCE: sil-api
+      JWKS_URL: http://keycloak:8080/realms/sil/protocol/openid-connect/certs
+    networks: [internal]
+    depends_on: [db]
+    restart: unless-stopped
+
+  appointments-api:
+    build: { context: ., dockerfile: apis/appointments/Dockerfile }
+    environment: *apienv
+    networks: [internal]
+    depends_on: [db]
+    restart: unless-stopped
+
+  ai-gateway:
+    build:
+      context: .
+      dockerfile: ai-gateway/Dockerfile
+      args:
+        WITH_LLM_GUARD: ${WITH_LLM_GUARD:-true}
+        SPACY_MODEL: ${SPACY_MODEL:-en_core_web_lg}
+    environment:
+      OIDC_ISSUER: http://localhost:8081/realms/sil
+      OIDC_AUDIENCE: sil-api
+      JWKS_URL: http://keycloak:8080/realms/sil/protocol/openid-connect/certs
+      LLM_GUARD_ENABLED: ${WITH_LLM_GUARD:-true}
+      MOCK_LLM: ${MOCK_LLM:-false}            # true = echo the masked prompt instead of calling a model
+      UPSTREAM_URL: http://ollama:11434/v1/chat/completions
+      UPSTREAM_MODEL: ${UPSTREAM_MODEL:-qwen2.5:0.5b}
+      HTTPS_PROXY: http://squid:3128          # any internet-bound model call must pass the allowlist
+      HTTP_PROXY: http://squid:3128
+      NO_PROXY: ollama,keycloak,localhost
+      GUARDRAIL_LOG: /var/log/ai/guardrail.json
+    volumes:
+      - ./logs/ai:/var/log/ai
+    networks:
+      internal:
+        ipv4_address: 172.30.0.10             # Squid allows the enterprise LLM only from this address
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama:/root/.ollama
+    networks: [internal, egress]              # egress only to pull the model; production = private endpoint
+    restart: unless-stopped
+
+  squid:
+    image: ubuntu/squid
+    ports: ["127.0.0.1:3128:3128"]            # lets the Windows browser use it for the Shadow AI demo
+    volumes:
+      - ./squid/squid.conf:/etc/squid/squid.conf:ro
+      - ./logs/squid:/var/log/squid
+    networks: [internal, egress]
+    restart: unless-stopped

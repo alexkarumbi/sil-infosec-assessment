@@ -1,0 +1,2 @@
+# Heavy: pulls PyTorch and a ~700 MB prompt-injection model. Install CPU-only torch first (see Dockerfile).
+llm-guard==0.3.16

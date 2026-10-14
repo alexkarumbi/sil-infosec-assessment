@@ -1,0 +1,12 @@
+# Authorisation as data: who may do what. test_authz_matrix.py turns every cell into a test.
+# Add a row whenever an endpoint is added; an AI-generated endpoint without a row fails review.
+- { user: dr.wanjiru,       method: GET,  path: /api/v1/patients,      expect: 200 }
+- { user: dr.wanjiru,       method: GET,  path: /api/v1/patients/1,    expect: 200 }
+- { user: dr.wanjiru,       method: GET,  path: /api/v1/patients/7,    expect: 404 }   # other facility
+- { user: dr.kamau,         method: GET,  path: /api/v1/patients/7,    expect: 200 }
+- { user: dr.kamau,         method: GET,  path: /api/v1/patients/1,    expect: 404 }   # other facility
+- { user: reception.otieno, method: GET,  path: /api/v1/patients,      expect: 403 }
+- { user: reception.otieno, method: GET,  path: /api/v1/patients/1,    expect: 403 }
+- { user: reception.otieno, method: GET,  path: /api/v1/appointments,  expect: 200 }
+- { user: dr.kamau,         method: GET,  path: /api/v1/appointments,  expect: 200 }
+- { user: dr.kamau,         method: POST, path: /api/v1/ai/chat,       expect: 403, body: { prompt: hello } }

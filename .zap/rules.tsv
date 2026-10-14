@@ -1,0 +1,5 @@
+10035	IGNORE	(Strict-Transport-Security) Lab runs plain HTTP; HSTS is set at the TLS edge in production
+10049	IGNORE	(Non-storable content) Cache-Control no-store is intentional for patient data
+10015	IGNORE	(Re-examine cache-control) no-store is intentional
+40012	FAIL	(Reflected XSS) always fail
+40018	FAIL	(SQL injection) always fail

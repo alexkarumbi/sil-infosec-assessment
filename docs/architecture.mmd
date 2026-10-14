@@ -1,0 +1,36 @@
+%% Starter diagram (renders on GitHub). Redraw in draw.io for the report: add trust boundaries and ports.
+flowchart TB
+  subgraph Clients
+    A[Clinician app]
+    B[Partner system]
+  end
+  KC[Keycloak<br/>OIDC, MFA, roles, facility groups]
+  W[WAF: ModSecurity + OWASP CRS<br/>:8080]
+  subgraph Private["Private network (internal: true)"]
+    K[Kong API gateway<br/>JWT, rate limits, request IDs, logs]
+    P[Patients API]
+    AP[Appointments API]
+    G[AI guardrail gateway<br/>injection / PHI / secrets / PII masking]
+    DB[(PostgreSQL)]
+    S[Squid egress proxy<br/>allowlist]
+    O[Ollama local model]
+  end
+  LLM[Enterprise LLM<br/>private endpoint]
+  C[Consumer AI sites]
+  SIEM[Wazuh SIEM]
+  A --> W
+  B --> W
+  B -. get token .-> KC
+  W --> K
+  KC -. public key .-> K
+  K --> P & AP & G
+  P --> DB
+  AP --> DB
+  G --> O
+  G --> S
+  S -->|allowed| LLM
+  S -.->|denied + alerted| C
+  W -. logs .-> SIEM
+  K -. logs .-> SIEM
+  G -. logs .-> SIEM
+  S -. logs .-> SIEM

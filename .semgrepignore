@@ -1,0 +1,4 @@
+# .semgrep/ holds rule test cases with deliberately bad code; tests/ holds attack payloads.
+.semgrep/
+tests/
+docs/

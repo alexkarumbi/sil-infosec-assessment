@@ -1,0 +1,62 @@
+# Custom Semgrep rules for flaws AI code assistants commonly introduce in this codebase.
+# Test the rules against the annotated examples: semgrep --test .semgrep/
+rules:
+  - id: fastapi-route-without-auth
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Route '$PATH' has no authentication dependency. Every SIL API route except /health must take
+      `user: dict = Depends(require_role(...))`. AI-generated handlers often omit this.
+    metadata:
+      cwe: "CWE-306: Missing Authentication for Critical Function"
+      owasp: "API2:2023 Broken Authentication"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.$METHOD($PATH, ...)
+              def $FUNC(...):
+                ...
+          - pattern: |
+              @$APP.$METHOD($PATH, ...)
+              async def $FUNC(...):
+                ...
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(get|post|put|patch|delete)$
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: ^["']/api/
+      - pattern-not: |
+          @$APP.$METHOD($PATH, ...)
+          def $FUNC(..., $USER: $TYPE = Depends(...), ...):
+            ...
+      - pattern-not: |
+          @$APP.$METHOD($PATH, ...)
+          async def $FUNC(..., $USER: $TYPE = Depends(...), ...):
+            ...
+
+  - id: select-by-id-without-facility-scope
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Query looks up a record by id without a facility_id condition. Any authenticated user could read
+      another facility's record by changing the id (IDOR / broken object-level authorisation).
+    metadata:
+      cwe: "CWE-639: Authorization Bypass Through User-Controlled Key"
+      owasp: "API1:2023 Broken Object Level Authorization"
+    patterns:
+      - pattern: $DB("$SQL", ...)
+      - metavariable-regex:
+          metavariable: $SQL
+          regex: (?is)^(?!.*facility_id).*\bwhere\s+(\w+\.)?id\s*=\s*%s
+
+  - id: sql-built-with-fstring
+    languages: [python]
+    severity: ERROR
+    message: SQL built with an f-string or concatenation. Use parameters (%s) instead.
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+    pattern-either:
+      - pattern: $CUR.execute(f"...", ...)
+      - pattern: $DB(f"...", ...)
+      - pattern: $CUR.execute("..." + $X, ...)

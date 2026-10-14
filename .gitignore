@@ -1,0 +1,13 @@
+# secrets: only .env.example and the throwaway .env.ci are committed
+lab/.env
+.env
+# generated / runtime
+lab/kong/kong.yml
+lab/logs/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+sbom.cdx.json
+semgrep.sarif
+report_*.html

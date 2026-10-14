@@ -1,0 +1,1 @@
+{"log_source":"ai_gateway","user":"dr.wanjiru","prompt_sha256":"5e2bf57d3f40c4b6df69daf1936cb766f832374b4fc0259a7cbff06e2f70f269","prompt_chars":74,"decision":"block","reason":"phi_detected","entities":["KE_NATIONAL_ID","MEDICAL_RECORD_NUMBER"],"ts":"2026-10-17T10:42:11+00:00"}

@@ -1,0 +1,97 @@
+{
+  "realm": "sil",
+  "enabled": true,
+  "displayName": "SIL Assessment Lab",
+  "sslRequired": "external",
+  "accessTokenLifespan": 600,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and notUsername",
+  "roles": {
+    "realm": [
+      { "name": "clinician", "description": "Reads and writes patient records for own facility" },
+      { "name": "receptionist", "description": "Books appointments for own facility" },
+      { "name": "ai-user", "description": "May call the internal AI assistant" },
+      { "name": "admin", "description": "Lab administrator" }
+    ]
+  },
+  "groups": [
+    { "name": "facility-1", "path": "/facility-1" },
+    { "name": "facility-2", "path": "/facility-2" }
+  ],
+  "clients": [
+    {
+      "clientId": "sil-portal",
+      "name": "SIL portal (lab)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost/*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "audience-sil-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "sil-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "facility-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "dr.wanjiru",
+      "email": "dr.wanjiru@lab.invalid",
+      "firstName": "Wanjiru",
+      "lastName": "Lab",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["clinician", "ai-user"],
+      "groups": ["/facility-1"],
+      "credentials": [{ "type": "password", "value": "${LAB_USER_PASSWORD}", "temporary": false }]
+    },
+    {
+      "username": "reception.otieno",
+      "email": "reception.otieno@lab.invalid",
+      "firstName": "Otieno",
+      "lastName": "Lab",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["receptionist"],
+      "groups": ["/facility-1"],
+      "credentials": [{ "type": "password", "value": "${LAB_USER_PASSWORD}", "temporary": false }]
+    },
+    {
+      "username": "dr.kamau",
+      "email": "dr.kamau@lab.invalid",
+      "firstName": "Kamau",
+      "lastName": "Lab",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["clinician"],
+      "groups": ["/facility-2"],
+      "credentials": [{ "type": "password", "value": "${LAB_USER_PASSWORD}", "temporary": false }]
+    }
+  ]
+}
