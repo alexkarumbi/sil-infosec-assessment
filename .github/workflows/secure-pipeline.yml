@@ -148,6 +148,7 @@ jobs:
       - name: Collect logs for the evidence pack
         if: always()
         run: |
+          sudo chmod -R a+rX lab/logs || true   # container logs are written as root
           cd lab && docker compose logs --no-color > ../compose.log 2>&1 || true
       - uses: actions/upload-artifact@v7.0.2
         if: always()
