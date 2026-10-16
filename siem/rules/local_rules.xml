@@ -14,7 +14,7 @@
 
   <rule id="100101" level="10">
     <if_sid>100100</if_sid>
-    <field name="url" type="pcre2">(?i)(chatgpt\.com|chat\.openai\.com|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com|perplexity\.ai|chat\.deepseek\.com|poe\.com)</field>
+    <url type="pcre2">(?i)(chatgpt\.com|chat\.openai\.com|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com|perplexity\.ai|chat\.deepseek\.com|poe\.com)</url>
     <description>SIL Shadow AI: $(src_ip) tried to reach consumer LLM $(url) (proxy action $(action))</description>
     <mitre>
       <id>T1567</id>
@@ -53,7 +53,7 @@
 
   <rule id="100113" level="12" frequency="5" timeframe="300">
     <if_matched_sid>100112</if_matched_sid>
-    <same_field>user</same_field>
+    <same_user />
     <description>SIL AI guardrail: repeated prompt injection attempts from user $(user)</description>
   </rule>
 </group>
