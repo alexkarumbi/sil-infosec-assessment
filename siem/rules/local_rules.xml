@@ -42,19 +42,19 @@
   <rule id="100111" level="12">
     <if_sid>100110</if_sid>
     <field name="reason">^phi_detected$|^secret_detected$</field>
-    <description>SIL AI guardrail blocked $(reason) from user $(user)</description>
+    <description>SIL AI guardrail blocked $(reason) from user $(dstuser)</description>
   </rule>
 
   <rule id="100112" level="10">
     <if_sid>100110</if_sid>
     <field name="reason">^prompt_injection$</field>
-    <description>SIL AI guardrail blocked a prompt injection attempt from user $(user)</description>
+    <description>SIL AI guardrail blocked a prompt injection attempt from user $(dstuser)</description>
   </rule>
 
   <rule id="100113" level="12" frequency="5" timeframe="300">
     <if_matched_sid>100112</if_matched_sid>
     <same_user />
-    <description>SIL AI guardrail: repeated prompt injection attempts from user $(user)</description>
+    <description>SIL AI guardrail: repeated prompt injection attempts from user $(dstuser)</description>
   </rule>
 </group>
 
@@ -79,8 +79,8 @@
 <!-- ===== Ransomware behaviour (Windows agent: file integrity monitoring + Sysmon) ===== -->
 <group name="sil,ransomware,">
   <rule id="100200" level="12" frequency="25" timeframe="60">
-    <if_matched_sid>550</if_matched_sid>
-    <description>SIL possible ransomware: 25 or more file modifications in 60 seconds</description>
+    <if_matched_group>syscheck_file</if_matched_group>
+    <description>SIL possible ransomware: 25 or more file changes (add/modify/delete) in 60 seconds</description>
     <mitre>
       <id>T1486</id>
     </mitre>
@@ -89,8 +89,8 @@
   <!-- If this never fires, your Wazuh version may expose the path as field "file": swap the name and retest. -->
   <rule id="100201" level="12">
     <if_sid>554</if_sid>
-    <field name="syscheck.path" type="pcre2">(?i)\.(locked|encrypted|crypt|enc)$</field>
-    <description>SIL possible ransomware: encrypted-extension file created $(syscheck.path)</description>
+    <field name="file" type="pcre2">(?i)\.(locked|encrypted|crypt|enc)$</field>
+    <description>SIL possible ransomware: encrypted-extension file created $(file)</description>
     <mitre>
       <id>T1486</id>
     </mitre>
