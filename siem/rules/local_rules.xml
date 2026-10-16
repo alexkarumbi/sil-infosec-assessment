@@ -62,7 +62,7 @@
 <group name="sil,waf,">
   <rule id="100120" level="5">
     <decoded_as>json</decoded_as>
-    <field name="transaction.response.http_code">^403$</field>
+    <field name="transaction.is_interrupted">^true$</field>
     <description>SIL WAF blocked a request from $(transaction.client_ip)</description>
   </rule>
 
