@@ -7,6 +7,16 @@ gateway, a Wazuh SIEM with ransomware and Shadow AI detections, and a secure CI/
 
 All data is synthetic. No real patient data or real credentials are used anywhere.
 
+## Read this first
+
+| | |
+| --- | --- |
+| **Full report (PDF)** | [`docs/SIL-Infosec-Assessment-Alex-Karumbi-Muhia.pdf`](docs/SIL-Infosec-Assessment-Alex-Karumbi-Muhia.pdf) |
+| Overview | [`docs/overview.md`](docs/overview.md) |
+| Section 1A, 1B, 2 | [`1A`](docs/section-1a.md) · [`1B`](docs/section-1b.md) · [`2`](docs/section-2.md) · [`Incident report`](docs/incident-report.md) |
+| Diagrams (PNG + editable draw.io) | [`docs/diagrams/`](docs/diagrams/) |
+| Evidence (29 screenshots) | [`evidence/screenshots/`](evidence/screenshots/) · [index](docs/evidence-index.md) |
+
 ## Where each answer lives
 
 | Brief | Code / config | Written answer |
