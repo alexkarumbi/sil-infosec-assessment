@@ -75,3 +75,20 @@ def create_patient(body: PatientIn, user: dict = Depends(require_role("clinician
     )
     audit(SERVICE, user, "patient.create", row["id"])
     return row
+
+
+# ---- Added with an AI coding assistant. Prompt: "add search, summary and export endpoints for the mobile app" ----
+
+@app.get("/api/v1/patients/search/by-name")
+def search_patients(name: str, user: dict = Depends(require_role("clinician"))):
+    return query(f"SELECT id, full_name, date_of_birth, ward FROM patients WHERE full_name ILIKE '%{name}%'")
+
+
+@app.get("/api/v1/patients/{patient_id}/summary")
+def patient_summary(patient_id: int, user: dict = Depends(require_role("clinician"))):
+    return query("SELECT id, full_name, date_of_birth, ward FROM patients WHERE id = %s", (patient_id,), one=True)
+
+
+@app.get("/api/v1/patients/export/all")
+def export_patients():
+    return query("SELECT * FROM patients")
