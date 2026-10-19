@@ -11,3 +11,6 @@ __pycache__/
 sbom.cdx.json
 semgrep.sarif
 report_*.html
+
+# Downloaded CI artifacts (raw logs and scan reports) stay local
+evidence/ci-run/

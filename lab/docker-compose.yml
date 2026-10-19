@@ -33,7 +33,7 @@ services:
       MODSEC_AUDIT_LOG_FORMAT: JSON
       MODSEC_AUDIT_LOG_TYPE: Serial
       MODSEC_AUDIT_LOG: /var/log/modsec/audit.json
-      MODSEC_AUDIT_LOG_PARTS: ABFHKZ   # no request/response bodies: prompts may contain patient data
+      MODSEC_AUDIT_LOG_PARTS: AFHKZ    # no bodies (prompts may hold patient data) and no request headers (bearer tokens)
     volumes:
       - ./logs/waf:/var/log/modsec
     networks: [edge, internal]
