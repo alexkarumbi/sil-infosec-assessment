@@ -13,6 +13,8 @@ repos:
       - id: detect-private-key
       - id: check-added-large-files
         args: ["--maxkb=1024"]
+        # Documented exception: the submitted report PDF (about 3 MB, screenshots at full resolution).
+        exclude: ^docs/SIL-Infosec-Assessment-.*\.pdf$
       - id: check-yaml
         args: ["--allow-multiple-documents"]
       - id: check-json
